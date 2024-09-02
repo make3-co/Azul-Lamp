@@ -10,6 +10,9 @@ const int potPin = A0;        // Analog pin where the potentiometer is connected
 const int ledPin = 5;         // PWM-capable GPIO pin connected to the LED strip
 const int touchPin = 6;       // GPIO pin connected to the touch sensor output
 
+// USB power detection pin (depending on your setup, might need to be adjusted)
+const int usbPin = 36;        // GPIO pin to detect USB power (adjust as needed)
+
 // OLED display settings
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -28,6 +31,7 @@ bool ledState = false;  // LED is initially off
 void setup() {
   // Initialize the LED pin as an output
   pinMode(ledPin, OUTPUT);
+  pinMode(usbPin, INPUT);
 
   // Initialize serial communication
   Serial.begin(115200);
@@ -82,9 +86,24 @@ void loop() {
   float voltage = max17048.cellVoltage();       // Get battery voltage (in volts)
   float soc = max17048.cellPercent();           // Get battery state of charge (in percentage)
 
-  // Display battery information, touch pin state, pot value, and LED state on OLED
+  // Detect power source (USB or Battery)
+  int usbVoltage = analogRead(usbPin);          // Read the analog value from the USB pin
+  Serial.print("USB Pin Voltage: ");
+  Serial.println(usbVoltage);                   // Debugging: Print the USB pin voltage
+
+  String powerSource;
+  if (usbVoltage > 3000) {  // Adjust threshold as needed
+    powerSource = "USB";
+  } else {
+    powerSource = "Battery";
+  }
+
+  // Display battery information, touch pin state, pot value, LED state, and power source on OLED
   display.clearDisplay();
   display.setCursor(0, 0);
+  display.print("Power: ");
+  display.println(powerSource);
+
   display.print("Battery: ");
   display.print(voltage);
   display.println(" V");
