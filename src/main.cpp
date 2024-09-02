@@ -1,11 +1,20 @@
 #include <Arduino.h>
 #include <ezButton.h>
 #include <Adafruit_MAX1704X.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 // Define the pin for the potentiometer, LED strip, and touch sensor
 const int potPin = A0;        // Analog pin where the potentiometer is connected
 const int ledPin = 5;         // PWM-capable GPIO pin connected to the LED strip
 const int touchPin = 6;       // GPIO pin connected to the touch sensor output
+
+// OLED display settings
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET    -1  // Reset pin # (or -1 if sharing Arduino reset pin)
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // Create an ezButton object for the touch sensor
 ezButton touchButton(touchPin);
@@ -22,6 +31,15 @@ void setup() {
 
   // Initialize serial communication
   Serial.begin(115200);
+
+  // Initialize the OLED display
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x64
+    Serial.println("SSD1306 allocation failed");
+    for (;;);
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
 
   // Configure PWM
   const int pwmChannel = 0;
@@ -52,25 +70,38 @@ void loop() {
   }
 
   // If the LED is supposed to be on, adjust brightness with the potentiometer
+  int potValue = analogRead(potPin);           // Read potentiometer value
   if (ledState) {
-    int potValue = analogRead(potPin);           // Read potentiometer value
     int pwmValue = map(potValue, 0, 4095, 0, 255);  // Map to PWM range
     ledcWrite(0, pwmValue);                      // Adjust LED brightness
   } else {
     ledcWrite(0, 0);  // Turn off the LED
   }
 
-// Read battery information from MAX17048
+  // Read battery information from MAX17048
   float voltage = max17048.cellVoltage();       // Get battery voltage (in volts)
   float soc = max17048.cellPercent();           // Get battery state of charge (in percentage)
 
-  // Display battery information
-  Serial.print("Battery Voltage: ");
-  Serial.print(voltage);
-  Serial.print(" V, State of Charge: ");
-  Serial.print(soc);
-  Serial.println(" %");
+  // Display battery information, touch pin state, pot value, and LED state on OLED
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Battery: ");
+  display.print(voltage);
+  display.println(" V");
+  display.print("Charge: ");
+  display.print(soc);
+  display.println(" %");
 
+  display.print("Touch Pin: ");
+  display.println(ledState ? "Pressed" : "Released");
+
+  display.print("Pot Value: ");
+  display.println(potValue);
+
+  display.print("LED State: ");
+  display.println(ledState ? "ON" : "OFF");
+
+  display.display();
 
   // Debugging output
   Serial.print("LED State: ");
