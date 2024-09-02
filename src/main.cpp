@@ -32,6 +32,13 @@ void setup() {
 
   // Configure the touch button with debounce
   touchButton.setDebounceTime(50); // Set debounce time to 50ms
+
+  // Initialize the MAX17048 battery monitor
+  if (!max17048.begin()) {
+    Serial.println("MAX17048 not found. Check wiring!");
+    while (1);
+  }
+  Serial.println("MAX17048 found!");
 }
 
 void loop() {
@@ -52,6 +59,18 @@ void loop() {
   } else {
     ledcWrite(0, 0);  // Turn off the LED
   }
+
+// Read battery information from MAX17048
+  float voltage = max17048.cellVoltage();       // Get battery voltage (in volts)
+  float soc = max17048.cellPercent();           // Get battery state of charge (in percentage)
+
+  // Display battery information
+  Serial.print("Battery Voltage: ");
+  Serial.print(voltage);
+  Serial.print(" V, State of Charge: ");
+  Serial.print(soc);
+  Serial.println(" %");
+
 
   // Debugging output
   Serial.print("LED State: ");
