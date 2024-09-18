@@ -5,25 +5,28 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-// Define the pin for the potentiometer, LED strip, and touch sensor
-const int potPin = A0;        // Analog pin where the potentiometer is connected
-const int ledPin = 5;         // PWM-capable GPIO pin connected to the LED strip
-const int touchPin = 6;       // GPIO pin connected to the touch sensor output
+// Pin definitions
+constexpr int potPin = A0;
+constexpr int ledPin = 5;
+constexpr int touchPin = 6;
 
 // OLED display settings
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET    -1  // Reset pin # (or -1 if sharing Arduino reset pin)
+constexpr int SCREEN_WIDTH = 128;
+constexpr int SCREEN_HEIGHT = 64;
+constexpr int OLED_RESET = -1;
+constexpr int OLED_ADDRESS = 0x3C;
+
+// PWM settings
+constexpr int pwmChannel = 0;
+constexpr int pwmFrequency = 5000;
+constexpr int pwmResolution = 8;
+
+// Object initializations
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-// Create an ezButton object for the touch sensor
 ezButton touchButton(touchPin);
-
-// Create an object for the MAX17048 battery monitor
 Adafruit_MAX17048 max17048;
 
-// Variables to manage LED state
-bool ledState = false;  // LED is initially off
+bool ledState = false;
 
 void setup() {
   // Initialize the LED pin as an output
@@ -33,7 +36,7 @@ void setup() {
   Serial.begin(115200);
 
   // Initialize the OLED display
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x64
+  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) { // Address 0x3C for 128x64
     Serial.println("SSD1306 allocation failed");
     for (;;);
   }
@@ -42,9 +45,6 @@ void setup() {
   display.setTextColor(SSD1306_WHITE);
 
   // Configure PWM
-  const int pwmChannel = 0;
-  const int pwmFrequency = 5000; // 5 kHz frequency
-  const int pwmResolution = 8;   // 8-bit resolution
   ledcSetup(pwmChannel, pwmFrequency, pwmResolution);
   ledcAttachPin(ledPin, pwmChannel);
 
@@ -59,30 +59,25 @@ void setup() {
   Serial.println("MAX17048 found!");
 }
 
-void loop() {
-  // Update the touch button state
+void handleTouchButton() {
   touchButton.loop();
-
-  // Check if the touch button was pressed
   if (touchButton.isPressed()) {
-    ledState = !ledState;  // Toggle LED state
+    ledState = !ledState;
     Serial.println("Touch detected, toggling LED state");
   }
+}
 
-  // If the LED is supposed to be on, adjust brightness with the potentiometer
-  int potValue = analogRead(potPin);           // Read potentiometer value
-  if (ledState) {
-    int pwmValue = map(potValue, 0, 4095, 0, 255);  // Map to PWM range
-    ledcWrite(0, pwmValue);                      // Adjust LED brightness
-  } else {
-    ledcWrite(0, 0);  // Turn off the LED
-  }
+void updateLED() {
+  int potValue = analogRead(potPin);
+  int pwmValue = ledState ? map(potValue, 0, 4095, 0, 255) : 0;
+  ledcWrite(pwmChannel, pwmValue);
+}
 
-  // Read battery information from MAX17048
-  float voltage = max17048.cellVoltage();       // Get battery voltage (in volts)
-  float soc = max17048.cellPercent();           // Get battery state of charge (in percentage)
+void updateDisplay() {
+  float voltage = max17048.cellVoltage();
+  float soc = max17048.cellPercent();
+  int potValue = analogRead(potPin);
 
-  // Display battery information, touch pin state, pot value, and LED state on OLED
   display.clearDisplay();
   display.setCursor(0, 0);
   display.print("Battery: ");
@@ -102,8 +97,13 @@ void loop() {
   display.println(ledState ? "ON" : "OFF");
 
   display.display();
+}
 
-  // Debugging output
+void loop() {
+  handleTouchButton();
+  updateLED();
+  updateDisplay();
+
   Serial.print("LED State: ");
   Serial.println(ledState ? "ON" : "OFF");
 
